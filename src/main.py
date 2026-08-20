@@ -5,8 +5,15 @@ Also looks up the live "On Order" quantity per SKU as an informational
 column. Writes a CSV and emails it out.
 
 Usage:
-    python src/main.py             # full run
-    python src/main.py --dry-run   # writes CSV, prints what it WOULD email
+    python src/main.py               # full run
+    python src/main.py --dry-run     # writes CSV, prints what it WOULD email
+    python src/main.py --test-email  # sends a real, obviously-labeled test
+                                      # email with a tiny sample CSV attached,
+                                      # regardless of whether there are any
+                                      # real backorders today. Use this to
+                                      # confirm Gmail auth/delivery works
+                                      # end-to-end before relying on the
+                                      # daily cron.
 """
 import argparse
 import sys
@@ -19,6 +26,56 @@ from shiphero_client import ShipHeroClient
 from matcher import find_no_po_matches
 from csv_export import write_csv
 from gmail_client import send_report_email
+
+
+def send_test_email(cfg: "Config") -> None:
+    """Sends a real email through the same Gmail send path the daily report
+    uses, but with clearly-labeled fake/sample content. Doesn't touch
+    ShipHero at all — this only exists to confirm Gmail OAuth + delivery
+    work before the first real scheduled run.
+    """
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+
+    sample_rows = [
+        {
+            "order_number": "TEST-0001",
+            "order_date": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "customer_email": "test-customer@example.com",
+            "sku": "TEST-SKU-001",
+            "product_name": "Sample Product (test row — not a real order)",
+            "qty_backordered": 1,
+            "orders_affected_for_sku": 1,
+            "on_order": 0,
+            "order_id": "TEST-ID-0001",
+        }
+    ]
+
+    csv_path = Path(f"output/TEST_universal_parks_backordered_report_{today}.csv")
+    write_csv(sample_rows, csv_path)
+    print(f"Wrote sample test CSV to {csv_path}")
+
+    body = (
+        f"=== THIS IS A TEST EMAIL — not a real backorder report ===\n"
+        f"Sent to confirm Gmail auth/delivery works for the Universal Parks\n"
+        f"backorder report before relying on the daily schedule.\n\n"
+        f"Sent at:  {now.strftime('%Y-%m-%d %H:%M:%S UTC')}\n\n"
+        f"The attached CSV contains one fake sample row, not real data.\n"
+        f"If you received this, Gmail sending is working correctly."
+    )
+
+    print(f"Sending TEST email to {cfg.recipients}...")
+    send_report_email(
+        client_id=cfg.gmail_client_id,
+        client_secret=cfg.gmail_client_secret,
+        refresh_token=cfg.gmail_refresh_token,
+        sender=cfg.gmail_sender_email,
+        recipients=cfg.recipients,
+        subject=f"[TEST] Vertical Passage x Universal Parks: Backorder Report - {today}",
+        body_text=body,
+        csv_path=csv_path,
+    )
+    print("Test email sent. Check the inbox for the recipients above.")
 
 
 def run(dry_run: bool = False) -> None:
@@ -113,9 +170,19 @@ def run(dry_run: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--test-email",
+        action="store_true",
+        help="Send a real test email with sample data, regardless of "
+        "whether there are any actual backorders today. Does not query "
+        "ShipHero at all.",
+    )
     args = parser.parse_args()
     try:
-        run(dry_run=args.dry_run)
+        if args.test_email:
+            send_test_email(Config())
+        else:
+            run(dry_run=args.dry_run)
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         sys.exit(1)
