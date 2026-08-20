@@ -1,0 +1,42 @@
+name: Daily Pre-Order Report - Universal Parks
+
+on:
+  schedule:
+    # 11:00 UTC daily. Adjust for your local time / DST as needed.
+    - cron: "0 11 * * *"
+  workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab
+
+jobs:
+  run-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily pre-order report
+        working-directory: src
+        env:
+          SHIPHERO_REFRESH_TOKEN: ${{ secrets.SHIPHERO_REFRESH_TOKEN }}
+          SHIPHERO_CUSTOMER_ACCOUNT_ID: ${{ secrets.SHIPHERO_CUSTOMER_ACCOUNT_ID }}
+          SHIPHERO_WAREHOUSE_ID: ${{ secrets.SHIPHERO_WAREHOUSE_ID }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_SENDER_EMAIL: ${{ secrets.GMAIL_SENDER_EMAIL }}
+          REPORT_RECIPIENTS: ${{ secrets.REPORT_RECIPIENTS }}
+        run: python main.py
+
+      - name: Upload CSV as workflow artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-parks-backordered-report-csv
+          path: src/output/*.csv
+          if-no-files-found: ignore
+          retention-days: 90

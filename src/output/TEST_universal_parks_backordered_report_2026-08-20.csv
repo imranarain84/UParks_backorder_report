@@ -1,0 +1,2 @@
+order_number,order_date,customer_email,sku,product_name,qty_backordered,orders_affected_for_sku,on_order,order_id
+TEST-0001,2026-08-20T15:49:45Z,test-customer@example.com,TEST-SKU-001,Sample Product (test row — not a real order),1,1,0,TEST-ID-0001
