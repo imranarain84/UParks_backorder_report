@@ -37,7 +37,7 @@ class Config:
         recipients_raw = _require("REPORT_RECIPIENTS")
         self.recipients = [r.strip() for r in recipients_raw.split(",") if r.strip()]
 
-        self.lookback_days = int(os.environ.get("LOOKBACK_DAYS", "7"))
+        self.lookback_days = int(os.environ.get("LOOKBACK_DAYS", "45"))
         self.preorder_tag = os.environ.get("PREORDER_TAG", "preorder")
         # SKUs affecting this many distinct orders (or more) are excluded —
         # treated as an already-known, larger-scale issue rather than
