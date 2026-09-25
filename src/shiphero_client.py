@@ -92,7 +92,7 @@ class ShipHeroClient:
         null for these rather than treating it as "don't filter."
         """
         var_decls = ["$order_date_from: ISODateTime", "$after: String"]
-        args = ['order_date_from: $order_date_from', 'fulfillment_status: "pending"']
+        args = ['order_date_from: $order_date_from', 'has_backorder: true']
         variables: dict = {"order_date_from": order_date_from}
 
         if customer_account_id:
